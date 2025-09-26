@@ -7,7 +7,7 @@ import { Separator } from './ui/separator';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { Slider } from './ui/slider';
-import { Settings as SettingsIcon, Clock, Coffee, RotateCcw, Save, Volume2, Bell } from 'lucide-react';
+import { Settings as SettingsIcon, Clock, Coffee, RotateCcw, Save, Volume2, Bell, Plus, Trash2, Target } from 'lucide-react';
 import { TimerSettings } from '../App';
 
 interface SettingsProps {
@@ -21,8 +21,12 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     soundEnabled: settings.soundEnabled ?? true,
     soundVolume: settings.soundVolume ?? 0.5,
     soundType: settings.soundType ?? 'bell',
+    defaultTaskName: settings.defaultTaskName ?? '專注工作',
+    lastSelectedTask: settings.lastSelectedTask ?? '',
+    customTaskList: settings.customTaskList ?? [],
   });
   const [hasChanges, setHasChanges] = useState(false);
+  const [newCustomTask, setNewCustomTask] = useState('');
 
   const handleChange = (field: keyof TimerSettings, value: number) => {
     // Input validation
@@ -80,6 +84,9 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
       soundEnabled: true,
       soundVolume: 0.5,
       soundType: 'bell',
+      defaultTaskName: '專注工作',
+      lastSelectedTask: '',
+      customTaskList: [],
     };
     setLocalSettings(defaultSettings);
     setHasChanges(true);
@@ -154,26 +161,47 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     }
   };
 
+  const addCustomTask = () => {
+    if (newCustomTask.trim() && !localSettings.customTaskList.includes(newCustomTask.trim())) {
+      const updatedCustomTaskList = [...localSettings.customTaskList, newCustomTask.trim()];
+      setLocalSettings(prev => ({
+        ...prev,
+        customTaskList: updatedCustomTaskList
+      }));
+      setNewCustomTask('');
+      setHasChanges(true);
+    }
+  };
+
+  const removeCustomTask = (taskToRemove: string) => {
+    const updatedCustomTaskList = localSettings.customTaskList.filter(task => task !== taskToRemove);
+    setLocalSettings(prev => ({
+      ...prev,
+      customTaskList: updatedCustomTaskList
+    }));
+    setHasChanges(true);
+  };
+
   const presets = [
     {
       name: '經典番茄鐘',
-      settings: { workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, pomodorosUntilLongBreak: 4, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
+      settings: { workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, pomodorosUntilLongBreak: 4, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const, defaultTaskName: '專注工作', lastSelectedTask: '', customTaskList: [] },
     },
     {
       name: '短時專注',
-      settings: { workDuration: 15, shortBreakDuration: 3, longBreakDuration: 10, pomodorosUntilLongBreak: 4, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
+      settings: { workDuration: 15, shortBreakDuration: 3, longBreakDuration: 10, pomodorosUntilLongBreak: 4, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const, defaultTaskName: '專注工作', lastSelectedTask: '', customTaskList: [] },
     },
     {
       name: '長時專注',
-      settings: { workDuration: 45, shortBreakDuration: 10, longBreakDuration: 30, pomodorosUntilLongBreak: 3, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
+      settings: { workDuration: 45, shortBreakDuration: 10, longBreakDuration: 30, pomodorosUntilLongBreak: 3, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const, defaultTaskName: '專注工作', lastSelectedTask: '', customTaskList: [] },
     },
     {
       name: '學習模式',
-      settings: { workDuration: 50, shortBreakDuration: 10, longBreakDuration: 20, pomodorosUntilLongBreak: 2, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
+      settings: { workDuration: 50, shortBreakDuration: 10, longBreakDuration: 20, pomodorosUntilLongBreak: 2, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const, defaultTaskName: '專注工作', lastSelectedTask: '', customTaskList: [] },
     },
     {
       name: '測試模式',
-      settings: { workDuration: 0.1, shortBreakDuration: 0.05, longBreakDuration: 0.12, pomodorosUntilLongBreak: 2, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
+      settings: { workDuration: 0.1, shortBreakDuration: 0.05, longBreakDuration: 0.12, pomodorosUntilLongBreak: 2, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const, defaultTaskName: '專注工作', lastSelectedTask: '', customTaskList: [] },
     },
   ];
 
@@ -324,6 +352,70 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
               <div className="text-center p-3 bg-muted rounded-lg">
                 <div className="text-lg font-mono">{localSettings.pomodorosUntilLongBreak}</div>
                 <div className="text-xs text-muted-foreground">長休息間隔</div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="font-medium flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              預設任務設定
+            </h3>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="default-task-name">預設任務名稱</Label>
+                <Input
+                  id="default-task-name"
+                  value={localSettings.defaultTaskName}
+                  onChange={(e) => {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      defaultTaskName: e.target.value
+                    }));
+                    setHasChanges(true);
+                  }}
+                  placeholder="請輸入預設任務名稱"
+                />
+                <p className="text-xs text-muted-foreground">當工作項目為空時，會自動使用此名稱</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>自定義任務項目</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newCustomTask}
+                    onChange={(e) => setNewCustomTask(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomTask()}
+                    placeholder="新增自定義任務..."
+                  />
+                  <Button onClick={addCustomTask} variant="outline" size="icon">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {localSettings.customTaskList.length > 0 && (
+                  <div className="space-y-2 mt-3">
+                    <p className="text-sm text-muted-foreground">自定義任務列表：</p>
+                    <div className="space-y-1">
+                      {localSettings.customTaskList.map((task, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                          <span className="text-sm">{task}</span>
+                          <Button
+                            onClick={() => removeCustomTask(task)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

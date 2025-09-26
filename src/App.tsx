@@ -23,6 +23,9 @@ export interface TimerSettings {
   soundEnabled: boolean;
   soundVolume: number;
   soundType: 'bell' | 'chime' | 'digital' | 'soft';
+  defaultTaskName: string;
+  lastSelectedTask: string;
+  customTaskList: string[];
 }
 
 const defaultSettings: TimerSettings = {
@@ -33,6 +36,9 @@ const defaultSettings: TimerSettings = {
   soundEnabled: true,
   soundVolume: 0.5,
   soundType: 'bell',
+  defaultTaskName: '專注工作',
+  lastSelectedTask: '',
+  customTaskList: [],
 };
 
 export default function App() {
@@ -54,7 +60,11 @@ export default function App() {
     }
 
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+      const parsedSettings = JSON.parse(savedSettings);
+      setSettings({
+        ...defaultSettings,
+        ...parsedSettings
+      });
     }
   }, []);
 
@@ -113,9 +123,10 @@ export default function App() {
           </TabsList>
 
           <TabsContent value="timer">
-            <Timer 
-              settings={settings} 
+            <Timer
+              settings={settings}
               onSessionComplete={addSession}
+              onUpdateSettings={updateSettings}
               sessions={sessions}
             />
           </TabsContent>

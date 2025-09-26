@@ -29,6 +29,7 @@ import {
 interface TimerProps {
   settings: TimerSettings;
   onSessionComplete: (session: Omit<PomodoroSession, 'id'>) => void;
+  onUpdateSettings: (settings: TimerSettings) => void;
   sessions: PomodoroSession[];
 }
 
@@ -47,8 +48,8 @@ const defaultTaskTypes = [
   '休息放鬆'
 ];
 
-export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
-  const [taskName, setTaskName] = useState('');
+export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions }: TimerProps) {
+  const [taskName, setTaskName] = useState(settings.lastSelectedTask || settings.defaultTaskName || '');
   const [timeLeft, setTimeLeft] = useState(settings.workDuration * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<TimerPhase>('work');
@@ -280,13 +281,10 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
         : settings.shortBreakDuration * 60
       );
 
-      // 移除自動開始功能，保持在休息狀態
     } else {
       showNotification('休息時間結束！', '準備開始下一個番茄鐘 🍅');
       setCurrentPhase('work');
       setTimeLeft(settings.workDuration * 60);
-
-      // 移除自動開始功能，保持在工作狀態
     }
   };
 
@@ -317,8 +315,7 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
 
   const startTimer = () => {
     if (currentPhase === 'work' && !taskName.trim()) {
-      alert('請輸入任務名稱再開始計時');
-      return;
+      setTaskName(settings.defaultTaskName || '專注工作');
     }
     setIsRunning(true);
   };
@@ -332,7 +329,16 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
     setCurrentPhase('work');
     setTimeLeft(settings.workDuration * 60);
     setSessionCount(0);
+    setTaskName(settings.lastSelectedTask || settings.defaultTaskName || '');
     cancelAutoStart();
+  };
+
+  const updateLastSelectedTask = (task: string) => {
+    const updatedSettings = {
+      ...settings,
+      lastSelectedTask: task
+    };
+    onUpdateSettings(updatedSettings);
   };
 
   const progressPercentage = ((getCurrentPhaseDuration() - timeLeft) / getCurrentPhaseDuration()) * 100;
@@ -365,10 +371,13 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
                     onChange={(e) => {
                       setTaskName(e.target.value);
                       setShowTaskSuggestions(true);
+                      if (e.target.value.trim()) {
+                        updateLastSelectedTask(e.target.value.trim());
+                      }
                     }}
                     onFocus={() => setShowTaskSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowTaskSuggestions(false), 200)}
-                    placeholder={isRunning ? "計時進行中，任務已鎖定" : "輸入你要專注的任務..."}
+                    placeholder={isRunning ? "計時進行中，任務已鎖定" : `輸入你要專注的任務... (預設: ${settings.defaultTaskName || '專注工作'})`}
                     disabled={isRunning || autoStartCountdown > 0}
                     autoComplete="off"
                     className={isRunning ? "bg-gray-50 cursor-not-allowed" : ""}
@@ -385,6 +394,7 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
                             onClick={() => {
                               setTaskName(task);
                               setShowTaskSuggestions(false);
+                              updateLastSelectedTask(task);
                             }}
                           >
                             {task}
@@ -404,18 +414,40 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
                     {defaultTaskTypes.map((type) => (
                       <DropdownMenuItem
                         key={type}
-                        onClick={() => setTaskName(type)}
+                        onClick={() => {
+                          setTaskName(type);
+                          updateLastSelectedTask(type);
+                        }}
                       >
                         {type}
                       </DropdownMenuItem>
                     ))}
+                    {settings.customTaskList && settings.customTaskList.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-sm font-semibold border-t mt-1 pt-2">自定義任務</div>
+                        {settings.customTaskList.map((task, index) => (
+                          <DropdownMenuItem
+                            key={index}
+                            onClick={() => {
+                              setTaskName(task);
+                              updateLastSelectedTask(task);
+                            }}
+                          >
+                            {task}
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
                     {recentTasks.length > 0 && (
                       <>
                         <div className="px-2 py-1.5 text-sm font-semibold border-t mt-1 pt-2">最近使用</div>
                         {recentTasks.slice(0, 5).map((task, index) => (
                           <DropdownMenuItem
                             key={index}
-                            onClick={() => setTaskName(task)}
+                            onClick={() => {
+                              setTaskName(task);
+                              updateLastSelectedTask(task);
+                            }}
                           >
                             {task}
                           </DropdownMenuItem>
