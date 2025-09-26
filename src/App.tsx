@@ -75,6 +75,15 @@ export default function App() {
     setSessions(prev => [...prev, newSession]);
   };
 
+  const deleteSession = (sessionId: string) => {
+    setSessions(prev => prev.filter(session => session.id !== sessionId));
+  };
+
+  const clearTodaySessions = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setSessions(prev => prev.filter(session => session.date !== today));
+  };
+
   const updateSettings = (newSettings: TimerSettings) => {
     setSettings(newSettings);
   };
@@ -112,7 +121,11 @@ export default function App() {
           </TabsContent>
 
           <TabsContent value="reports">
-            <Reports sessions={sessions} />
+            <Reports
+              sessions={sessions}
+              onDeleteSession={deleteSession}
+              onClearTodaySessions={clearTodaySessions}
+            />
           </TabsContent>
 
           <TabsContent value="settings">

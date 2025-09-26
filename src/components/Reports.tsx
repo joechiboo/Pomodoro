@@ -3,15 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Calendar, Search, TrendingUp, Clock, Target } from 'lucide-react';
+import { Calendar, Search, TrendingUp, Clock, Target, Trash2, X } from 'lucide-react';
 import { PomodoroSession } from '../App';
 
 interface ReportsProps {
   sessions: PomodoroSession[];
+  onDeleteSession?: (sessionId: string) => void;
+  onClearTodaySessions?: () => void;
 }
 
-export function Reports({ sessions }: ReportsProps) {
+export function Reports({ sessions, onDeleteSession, onClearTodaySessions }: ReportsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('daily');
 
@@ -222,24 +225,47 @@ export function Reports({ sessions }: ReportsProps) {
               )}
 
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
                   <CardTitle>今日時程</CardTitle>
+                  {dailyData.sessions.length > 0 && onClearTodaySessions && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onClearTodaySessions}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      清除全部
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {dailyData.sessions.map((session, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg group">
                         <div className="flex items-center gap-3">
                           <Badge variant={session.type === 'work' ? 'default' : 'secondary'}>
                             {session.type === 'work' ? '工作' : '休息'}
                           </Badge>
                           <span>{session.taskName}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(session.completedAt).toLocaleTimeString('zh-TW', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(session.completedAt).toLocaleTimeString('zh-TW', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </div>
+                          {onDeleteSession && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onDeleteSession(session.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
