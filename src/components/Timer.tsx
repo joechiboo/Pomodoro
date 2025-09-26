@@ -23,8 +23,10 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
   const [currentPhase, setCurrentPhase] = useState<TimerPhase>('work');
   const [sessionCount, setSessionCount] = useState(0);
   const [completedPomodoros, setCompletedPomodoros] = useState(0);
-  
+  const [autoStartCountdown, setAutoStartCountdown] = useState(0);
+
   const intervalRef = useRef<NodeJS.Timeout>();
+  const countdownRef = useRef<NodeJS.Timeout>();
   const notificationPermission = useRef(false);
 
   // Request notification permission on component mount
@@ -104,16 +106,47 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
+
     oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-    
+
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.5);
+  };
+
+  const startAutoStartCountdown = (seconds: number) => {
+    setAutoStartCountdown(seconds);
+
+    const countdown = () => {
+      setAutoStartCountdown(prev => {
+        if (prev <= 1) {
+          setIsRunning(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    };
+
+    // 立即開始倒數，然後每秒更新
+    countdownRef.current = setInterval(countdown, 1000);
+
+    // 設定自動清理
+    setTimeout(() => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    }, seconds * 1000 + 100);
+  };
+
+  const cancelAutoStart = () => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+    setAutoStartCountdown(0);
   };
 
   const completeSession = () => {
@@ -125,28 +158,34 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
       completedAt: now,
       date: now.toISOString().split('T')[0],
     };
-    
+
     onSessionComplete(session);
     playNotificationSound();
-    
+
     if (currentPhase === 'work') {
       showNotification('工作時間結束！', '休息一下吧 ☕');
       setSessionCount(prev => prev + 1);
-      
+
       // Determine next break type
-      const nextPhase = (sessionCount + 1) % settings.pomodorosUntilLongBreak === 0 
-        ? 'longBreak' 
+      const nextPhase = (sessionCount + 1) % settings.pomodorosUntilLongBreak === 0
+        ? 'longBreak'
         : 'shortBreak';
-      
+
       setCurrentPhase(nextPhase);
-      setTimeLeft(nextPhase === 'longBreak' 
-        ? settings.longBreakDuration * 60 
+      setTimeLeft(nextPhase === 'longBreak'
+        ? settings.longBreakDuration * 60
         : settings.shortBreakDuration * 60
       );
+
+      // 5秒倒數後自動開始休息階段
+      startAutoStartCountdown(5);
     } else {
       showNotification('休息時間結束！', '準備開始下一個番茄鐘 🍅');
       setCurrentPhase('work');
       setTimeLeft(settings.workDuration * 60);
+
+      // 5秒倒數後自動開始下一個工作階段
+      startAutoStartCountdown(5);
     }
   };
 
@@ -192,6 +231,7 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
     setCurrentPhase('work');
     setTimeLeft(settings.workDuration * 60);
     setSessionCount(0);
+    cancelAutoStart();
   };
 
   const progressPercentage = ((getCurrentPhaseDuration() - timeLeft) / getCurrentPhaseDuration()) * 100;
@@ -226,19 +266,35 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
             
             <Progress value={progressPercentage} className="w-full" />
             
+            {autoStartCountdown > 0 && (
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-yellow-800">
+                    {currentPhase === 'work' ? '準備開始下一個番茄鐘' : '準備開始休息'}
+                  </div>
+                  <div className="text-3xl font-mono text-yellow-600 my-2">
+                    {autoStartCountdown}
+                  </div>
+                  <Button onClick={cancelAutoStart} variant="outline" size="sm">
+                    取消自動開始
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-center gap-4">
-              {!isRunning ? (
+              {!isRunning && autoStartCountdown === 0 ? (
                 <Button onClick={startTimer} size="lg" className="px-8">
                   <Play className="w-5 h-5 mr-2" />
                   開始
                 </Button>
-              ) : (
+              ) : isRunning ? (
                 <Button onClick={pauseTimer} variant="secondary" size="lg" className="px-8">
                   <Pause className="w-5 h-5 mr-2" />
                   暫停
                 </Button>
-              )}
-              
+              ) : null}
+
               <Button onClick={resetTimer} variant="outline" size="lg">
                 <RotateCcw className="w-5 h-5 mr-2" />
                 重置
