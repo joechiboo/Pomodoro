@@ -1,12 +1,14 @@
 {
   "name": "Pomodoro Timer - 番茄鐘專注工具",
   "short_name": "番茄鐘",
-  "description": "簡潔易用的網頁版蕃茄鐘工具，協助提升專注力和生產力",
-  "start_url": "/",
+  "description": "免費的網頁版番茄鐘工具，採用 25 分鐘專注 + 5 分鐘休息的科學方法。包含任務追蹤、數據分析、自訂設定功能，協助提升工作效率和專注力。支援瀏覽器通知和音效提醒。",
+  "start_url": "/Pomodoro/",
+  "scope": "/Pomodoro/",
+  "id": "/Pomodoro/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#FF6347",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/favicon-16x16.png",
@@ -38,5 +40,44 @@
     }
   ],
   "categories": ["productivity", "utilities", "tools"],
-  "lang": "zh-TW"
+  "lang": "zh-TW",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Pomodoro Timer 主介面"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "開始番茄鐘",
+      "short_name": "開始",
+      "description": "立即開始 25 分鐘專注工作",
+      "url": "/Pomodoro/?start=true",
+      "icons": [
+        {
+          "src": "/favicon-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "查看報表",
+      "short_name": "報表",
+      "description": "查看生產力統計報表",
+      "url": "/Pomodoro/?tab=reports",
+      "icons": [
+        {
+          "src": "/favicon-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }
