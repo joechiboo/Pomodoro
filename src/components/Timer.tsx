@@ -153,41 +153,66 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
     }
   };
 
-  const playNotificationSound = () => {
+  const playNotificationSound = async () => {
     if (!settings.soundEnabled) return;
 
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+      // Resume audio context if it's suspended (required for modern browsers)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
 
-    // Different sound patterns based on settings
-    switch (settings.soundType) {
-      case 'bell':
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
-        break;
-      case 'chime':
-        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
-        oscillator.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.2);
-        break;
-      case 'digital':
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-        oscillator.type = 'square';
-        break;
-      case 'soft':
-        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-        oscillator.type = 'sine';
-        break;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      const soundType = settings.soundType || 'bell';
+      const volume = settings.soundVolume || 0.5;
+
+      // Different sound patterns based on settings
+      switch (soundType) {
+        case 'bell':
+          oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+          oscillator.type = 'sine';
+          break;
+        case 'chime':
+          oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+          oscillator.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.4);
+          oscillator.type = 'sine';
+          break;
+        case 'digital':
+          oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          oscillator.type = 'square';
+          break;
+        case 'soft':
+          oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+          oscillator.type = 'sine';
+          break;
+      }
+
+      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.6);
+
+      // Clean up after sound finishes
+      setTimeout(() => {
+        try {
+          audioContext.close();
+        } catch (e) {
+          // Ignore errors when closing context
+        }
+      }, 700);
+
+    } catch (error) {
+      console.warn('無法播放提示音效:', error);
     }
-
-    gainNode.gain.setValueAtTime(settings.soundVolume, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.5);
   };
 
   const startAutoStartCountdown = (seconds: number) => {
@@ -316,11 +341,18 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className={`transition-all duration-300 ${timeLeft <= 10 && isRunning ? 'ring-2 ring-red-400 shadow-lg shadow-red-100' : ''}`}>
         <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center gap-2">
+          <CardTitle className={`flex items-center justify-center gap-2 transition-colors duration-300 ${
+            timeLeft <= 10 && isRunning ? 'text-red-500' : ''
+          }`}>
             {getPhaseIcon()}
             {getPhaseLabel()}
+            {timeLeft <= 10 && isRunning && (
+              <span className="text-sm bg-red-100 text-red-600 px-2 py-1 rounded-full ml-2 animate-pulse">
+                最後 {timeLeft} 秒！
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -338,9 +370,10 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
                     }}
                     onFocus={() => setShowTaskSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowTaskSuggestions(false), 200)}
-                    placeholder="輸入你要專注的任務..."
-                    disabled={isRunning}
+                    placeholder={isRunning ? "計時進行中，任務已鎖定" : "輸入你要專注的任務..."}
+                    disabled={isRunning || autoStartCountdown > 0}
                     autoComplete="off"
+                    className={isRunning ? "bg-gray-50 cursor-not-allowed" : ""}
                   />
                   {showTaskSuggestions && taskName && (
                     <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
@@ -364,7 +397,7 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" disabled={isRunning}>
+                    <Button variant="outline" disabled={isRunning || autoStartCountdown > 0}>
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -398,11 +431,18 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
           )}
 
           <div className="text-center space-y-4">
-            <div className="text-6xl font-mono">
+            <div className={`text-6xl font-mono transition-all duration-300 ${
+              timeLeft <= 10 && isRunning ? 'text-red-500 animate-pulse scale-110' : ''
+            }`}>
               {formatTime(timeLeft)}
             </div>
-            
-            <Progress value={progressPercentage} className="w-full" />
+
+            <Progress
+              value={progressPercentage}
+              className={`w-full transition-all duration-300 ${
+                timeLeft <= 10 && isRunning ? 'border-red-500' : ''
+              }`}
+            />
             
             {autoStartCountdown > 0 && (
               <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

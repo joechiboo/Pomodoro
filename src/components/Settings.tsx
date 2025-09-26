@@ -17,13 +17,54 @@ interface SettingsProps {
 }
 
 export function Settings({ settings, onSettingsChange }: SettingsProps) {
-  const [localSettings, setLocalSettings] = useState<TimerSettings>(settings);
+  const [localSettings, setLocalSettings] = useState<TimerSettings>({
+    ...settings,
+    soundEnabled: settings.soundEnabled ?? true,
+    soundVolume: settings.soundVolume ?? 0.5,
+    soundType: settings.soundType ?? 'bell',
+  });
   const [hasChanges, setHasChanges] = useState(false);
 
   const handleChange = (field: keyof TimerSettings, value: number) => {
-    const newSettings = { ...localSettings, [field]: value };
+    // Input validation
+    let validatedValue = value;
+
+    switch (field) {
+      case 'workDuration':
+        validatedValue = Math.max(1, Math.min(120, value));
+        break;
+      case 'shortBreakDuration':
+        validatedValue = Math.max(1, Math.min(30, value));
+        break;
+      case 'longBreakDuration':
+        validatedValue = Math.max(1, Math.min(60, value));
+        break;
+      case 'pomodorosUntilLongBreak':
+        validatedValue = Math.max(1, Math.min(10, value));
+        break;
+    }
+
+    const newSettings = { ...localSettings, [field]: validatedValue };
     setLocalSettings(newSettings);
     setHasChanges(true);
+  };
+
+  const getFieldError = (field: keyof TimerSettings, value: number) => {
+    switch (field) {
+      case 'workDuration':
+        if (value < 1 || value > 120) return '工作時間須在 1-120 分鐘之間';
+        break;
+      case 'shortBreakDuration':
+        if (value < 1 || value > 30) return '短休息須在 1-30 分鐘之間';
+        break;
+      case 'longBreakDuration':
+        if (value < 1 || value > 60) return '長休息須在 1-60 分鐘之間';
+        break;
+      case 'pomodorosUntilLongBreak':
+        if (value < 1 || value > 10) return '間隔須在 1-10 番茄鐘之間';
+        break;
+    }
+    return null;
   };
 
   const handleSave = () => {
@@ -51,41 +92,67 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     setHasChanges(true);
   };
 
-  const testSound = () => {
+  const testSound = async () => {
     if (!localSettings.soundEnabled) return;
 
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+      // Resume audio context if it's suspended (required for modern browsers)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
 
-    // Different sound patterns based on type
-    switch (localSettings.soundType) {
-      case 'bell':
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
-        break;
-      case 'chime':
-        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
-        oscillator.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.2);
-        break;
-      case 'digital':
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-        oscillator.type = 'square';
-        break;
-      case 'soft':
-        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-        oscillator.type = 'sine';
-        break;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      const soundType = localSettings.soundType || 'bell';
+      const volume = localSettings.soundVolume || 0.5;
+
+      // Different sound patterns based on type
+      switch (soundType) {
+        case 'bell':
+          oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+          oscillator.type = 'sine';
+          break;
+        case 'chime':
+          oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+          oscillator.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.4);
+          oscillator.type = 'sine';
+          break;
+        case 'digital':
+          oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          oscillator.type = 'square';
+          break;
+        case 'soft':
+          oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+          oscillator.type = 'sine';
+          break;
+      }
+
+      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.6);
+
+      // Clean up after sound finishes
+      setTimeout(() => {
+        try {
+          audioContext.close();
+        } catch (e) {
+          // Ignore errors when closing context
+        }
+      }, 700);
+
+    } catch (error) {
+      console.warn('無法播放測試音效:', error);
+      alert('無法播放音效，可能因為瀏覽器限制。請確保已允許網站播放音效。');
     }
-
-    gainNode.gain.setValueAtTime(localSettings.soundVolume, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.5);
   };
 
   const presets = [
@@ -137,7 +204,8 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
             <div className="space-y-2">
               <Label htmlFor="work-duration" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                工作時間 (分鐘)
+                工作時間
+                <span className="text-sm text-muted-foreground">(分鐘, 1-120)</span>
               </Label>
               <Input
                 id="work-duration"
@@ -146,13 +214,18 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 max="120"
                 value={localSettings.workDuration}
                 onChange={(e) => handleChange('workDuration', parseInt(e.target.value) || 25)}
+                className={getFieldError('workDuration', localSettings.workDuration) ? 'border-red-500' : ''}
               />
+              {getFieldError('workDuration', localSettings.workDuration) && (
+                <p className="text-sm text-red-500">{getFieldError('workDuration', localSettings.workDuration)}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="short-break" className="flex items-center gap-2">
                 <Coffee className="w-4 h-4" />
-                短休息 (分鐘)
+                短休息
+                <span className="text-sm text-muted-foreground">(分鐘, 1-30)</span>
               </Label>
               <Input
                 id="short-break"
@@ -161,13 +234,18 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 max="30"
                 value={localSettings.shortBreakDuration}
                 onChange={(e) => handleChange('shortBreakDuration', parseInt(e.target.value) || 5)}
+                className={getFieldError('shortBreakDuration', localSettings.shortBreakDuration) ? 'border-red-500' : ''}
               />
+              {getFieldError('shortBreakDuration', localSettings.shortBreakDuration) && (
+                <p className="text-sm text-red-500">{getFieldError('shortBreakDuration', localSettings.shortBreakDuration)}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="long-break" className="flex items-center gap-2">
                 <Coffee className="w-4 h-4" />
-                長休息 (分鐘)
+                長休息
+                <span className="text-sm text-muted-foreground">(分鐘, 1-60)</span>
               </Label>
               <Input
                 id="long-break"
@@ -176,13 +254,18 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 max="60"
                 value={localSettings.longBreakDuration}
                 onChange={(e) => handleChange('longBreakDuration', parseInt(e.target.value) || 15)}
+                className={getFieldError('longBreakDuration', localSettings.longBreakDuration) ? 'border-red-500' : ''}
               />
+              {getFieldError('longBreakDuration', localSettings.longBreakDuration) && (
+                <p className="text-sm text-red-500">{getFieldError('longBreakDuration', localSettings.longBreakDuration)}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="pomodoros-until-long" className="flex items-center gap-2">
                 <RotateCcw className="w-4 h-4" />
-                長休息間隔 (番茄鐘數)
+                長休息間隔
+                <span className="text-sm text-muted-foreground">(番茄鐘數, 1-10)</span>
               </Label>
               <Input
                 id="pomodoros-until-long"
@@ -191,7 +274,11 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 max="10"
                 value={localSettings.pomodorosUntilLongBreak}
                 onChange={(e) => handleChange('pomodorosUntilLongBreak', parseInt(e.target.value) || 4)}
+                className={getFieldError('pomodorosUntilLongBreak', localSettings.pomodorosUntilLongBreak) ? 'border-red-500' : ''}
               />
+              {getFieldError('pomodorosUntilLongBreak', localSettings.pomodorosUntilLongBreak) && (
+                <p className="text-sm text-red-500">{getFieldError('pomodorosUntilLongBreak', localSettings.pomodorosUntilLongBreak)}</p>
+              )}
             </div>
           </div>
 
@@ -287,10 +374,10 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     音量
-                    <span className="text-sm text-muted-foreground">({Math.round(localSettings.soundVolume * 100)}%)</span>
+                    <span className="text-sm text-muted-foreground">({Math.round((localSettings.soundVolume || 0.5) * 100)}%)</span>
                   </Label>
                   <Slider
-                    value={[localSettings.soundVolume]}
+                    value={[localSettings.soundVolume || 0.5]}
                     onValueChange={([value]) => handleSoundSettingChange('soundVolume', value)}
                     min={0}
                     max={1}
@@ -302,11 +389,11 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 <div className="space-y-2">
                   <Label>音效類型</Label>
                   <Select
-                    value={localSettings.soundType}
+                    value={localSettings.soundType || 'bell'}
                     onValueChange={(value) => handleSoundSettingChange('soundType', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="選擇音效類型" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="bell">鐘聲</SelectItem>

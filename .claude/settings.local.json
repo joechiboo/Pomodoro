@@ -10,7 +10,8 @@
       "Bash(node:*)",
       "Bash(curl:*)",
       "Bash(start http://localhost:3007/Pomodoro/)",
-      "Bash(start http://localhost:3006/Pomodoro/)"
+      "Bash(start http://localhost:3006/Pomodoro/)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
