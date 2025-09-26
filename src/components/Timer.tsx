@@ -280,15 +280,13 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
         : settings.shortBreakDuration * 60
       );
 
-      // 5秒倒數後自動開始休息階段
-      startAutoStartCountdown(5);
+      // 移除自動開始功能，保持在休息狀態
     } else {
       showNotification('休息時間結束！', '準備開始下一個番茄鐘 🍅');
       setCurrentPhase('work');
       setTimeLeft(settings.workDuration * 60);
 
-      // 5秒倒數後自動開始下一個工作階段
-      startAutoStartCountdown(5);
+      // 移除自動開始功能，保持在工作狀態
     }
   };
 
