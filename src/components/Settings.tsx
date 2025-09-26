@@ -5,7 +5,10 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Badge } from './ui/badge';
-import { Settings as SettingsIcon, Clock, Coffee, RotateCcw, Save } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { Slider } from './ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Settings as SettingsIcon, Clock, Coffee, RotateCcw, Save, Volume2, Bell } from 'lucide-react';
 import { TimerSettings } from '../App';
 
 interface SettingsProps {
@@ -34,31 +37,77 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
       shortBreakDuration: 5,
       longBreakDuration: 15,
       pomodorosUntilLongBreak: 4,
+      soundEnabled: true,
+      soundVolume: 0.5,
+      soundType: 'bell',
     };
     setLocalSettings(defaultSettings);
     setHasChanges(true);
   };
 
+  const handleSoundSettingChange = (field: string, value: any) => {
+    const newSettings = { ...localSettings, [field]: value };
+    setLocalSettings(newSettings);
+    setHasChanges(true);
+  };
+
+  const testSound = () => {
+    if (!localSettings.soundEnabled) return;
+
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Different sound patterns based on type
+    switch (localSettings.soundType) {
+      case 'bell':
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+        break;
+      case 'chime':
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+        oscillator.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.2);
+        break;
+      case 'digital':
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.type = 'square';
+        break;
+      case 'soft':
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+        oscillator.type = 'sine';
+        break;
+    }
+
+    gainNode.gain.setValueAtTime(localSettings.soundVolume, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.5);
+  };
+
   const presets = [
     {
       name: '經典番茄鐘',
-      settings: { workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, pomodorosUntilLongBreak: 4 },
+      settings: { workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, pomodorosUntilLongBreak: 4, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
     },
     {
       name: '短時專注',
-      settings: { workDuration: 15, shortBreakDuration: 3, longBreakDuration: 10, pomodorosUntilLongBreak: 4 },
+      settings: { workDuration: 15, shortBreakDuration: 3, longBreakDuration: 10, pomodorosUntilLongBreak: 4, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
     },
     {
       name: '長時專注',
-      settings: { workDuration: 45, shortBreakDuration: 10, longBreakDuration: 30, pomodorosUntilLongBreak: 3 },
+      settings: { workDuration: 45, shortBreakDuration: 10, longBreakDuration: 30, pomodorosUntilLongBreak: 3, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
     },
     {
       name: '學習模式',
-      settings: { workDuration: 50, shortBreakDuration: 10, longBreakDuration: 20, pomodorosUntilLongBreak: 2 },
+      settings: { workDuration: 50, shortBreakDuration: 10, longBreakDuration: 20, pomodorosUntilLongBreak: 2, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
     },
     {
       name: '測試模式',
-      settings: { workDuration: 0.1, shortBreakDuration: 0.05, longBreakDuration: 0.12, pomodorosUntilLongBreak: 2 },
+      settings: { workDuration: 0.1, shortBreakDuration: 0.05, longBreakDuration: 0.12, pomodorosUntilLongBreak: 2, soundEnabled: true, soundVolume: 0.5, soundType: 'bell' as const },
     },
   ];
 
@@ -209,6 +258,77 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
               * 有未儲存的變更
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="w-5 h-5" />
+            音效設定
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="sound-enabled" className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4" />
+                啟用音效提示
+              </Label>
+              <Switch
+                id="sound-enabled"
+                checked={localSettings.soundEnabled}
+                onCheckedChange={(checked) => handleSoundSettingChange('soundEnabled', checked)}
+              />
+            </div>
+
+            {localSettings.soundEnabled && (
+              <>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    音量
+                    <span className="text-sm text-muted-foreground">({Math.round(localSettings.soundVolume * 100)}%)</span>
+                  </Label>
+                  <Slider
+                    value={[localSettings.soundVolume]}
+                    onValueChange={([value]) => handleSoundSettingChange('soundVolume', value)}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>音效類型</Label>
+                  <Select
+                    value={localSettings.soundType}
+                    onValueChange={(value) => handleSoundSettingChange('soundType', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bell">鐘聲</SelectItem>
+                      <SelectItem value="chime">風鈴</SelectItem>
+                      <SelectItem value="digital">數位音</SelectItem>
+                      <SelectItem value="soft">柔和音</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={testSound}
+                  className="w-full"
+                >
+                  <Volume2 className="w-4 h-4 mr-2" />
+                  測試音效
+                </Button>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 

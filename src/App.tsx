@@ -20,6 +20,9 @@ export interface TimerSettings {
   shortBreakDuration: number;
   longBreakDuration: number;
   pomodorosUntilLongBreak: number;
+  soundEnabled: boolean;
+  soundVolume: number;
+  soundType: 'bell' | 'chime' | 'digital' | 'soft';
 }
 
 const defaultSettings: TimerSettings = {
@@ -27,6 +30,9 @@ const defaultSettings: TimerSettings = {
   shortBreakDuration: 5,
   longBreakDuration: 15,
   pomodorosUntilLongBreak: 4,
+  soundEnabled: true,
+  soundVolume: 0.5,
+  soundType: 'bell',
 };
 
 export default function App() {

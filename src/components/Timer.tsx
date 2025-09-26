@@ -5,8 +5,26 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
-import { Play, Pause, RotateCcw, Coffee, Target } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Target, ChevronDown } from 'lucide-react';
 import { TimerSettings, PomodoroSession } from '../App';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from './ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from './ui/popover';
 
 interface TimerProps {
   settings: TimerSettings;
@@ -16,6 +34,19 @@ interface TimerProps {
 
 type TimerPhase = 'work' | 'shortBreak' | 'longBreak';
 
+const defaultTaskTypes = [
+  '編程開發',
+  '文檔撰寫',
+  '會議討論',
+  '學習研究',
+  '設計創作',
+  '測試除錯',
+  '郵件處理',
+  '專案規劃',
+  '代碼審查',
+  '休息放鬆'
+];
+
 export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
   const [taskName, setTaskName] = useState('');
   const [timeLeft, setTimeLeft] = useState(settings.workDuration * 60);
@@ -24,19 +55,39 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
   const [sessionCount, setSessionCount] = useState(0);
   const [completedPomodoros, setCompletedPomodoros] = useState(0);
   const [autoStartCountdown, setAutoStartCountdown] = useState(0);
+  const [recentTasks, setRecentTasks] = useState<string[]>([]);
+  const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
 
   const intervalRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
   const notificationPermission = useRef(false);
 
-  // Request notification permission on component mount
+  // Request notification permission on component mount and load recent tasks
   useEffect(() => {
     if ('Notification' in window) {
       Notification.requestPermission().then(permission => {
         notificationPermission.current = permission === 'granted';
       });
     }
+
+    // Load recent tasks from localStorage
+    const savedRecentTasks = localStorage.getItem('recentTasks');
+    if (savedRecentTasks) {
+      setRecentTasks(JSON.parse(savedRecentTasks));
+    }
   }, []);
+
+  // Update recent tasks when a new task is added
+  const updateRecentTasks = (task: string) => {
+    if (!task.trim()) return;
+
+    setRecentTasks(prev => {
+      const filtered = prev.filter(t => t !== task);
+      const updated = [task, ...filtered].slice(0, 10); // Keep only 10 recent tasks
+      localStorage.setItem('recentTasks', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // Reset timer when settings change
   useEffect(() => {
@@ -103,6 +154,8 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
   };
 
   const playNotificationSound = () => {
+    if (!settings.soundEnabled) return;
+
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -110,8 +163,27 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    // Different sound patterns based on settings
+    switch (settings.soundType) {
+      case 'bell':
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+        break;
+      case 'chime':
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+        oscillator.frequency.linearRampToValueAtTime(900, audioContext.currentTime + 0.2);
+        break;
+      case 'digital':
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.type = 'square';
+        break;
+      case 'soft':
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+        oscillator.type = 'sine';
+        break;
+    }
+
+    gainNode.gain.setValueAtTime(settings.soundVolume, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
 
     oscillator.start();
@@ -151,8 +223,9 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
 
   const completeSession = () => {
     const now = new Date();
+    const sessionTaskName = currentPhase === 'work' ? taskName : `${getPhaseLabel()}`;
     const session: Omit<PomodoroSession, 'id'> = {
-      taskName: currentPhase === 'work' ? taskName : `${getPhaseLabel()}`,
+      taskName: sessionTaskName,
       duration: getCurrentPhaseDuration() / 60,
       type: currentPhase === 'work' ? 'work' : (currentPhase === 'longBreak' ? 'longBreak' : 'break'),
       completedAt: now,
@@ -161,6 +234,11 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
 
     onSessionComplete(session);
     playNotificationSound();
+
+    // Update recent tasks if it's a work session
+    if (currentPhase === 'work' && taskName) {
+      updateRecentTasks(taskName);
+    }
 
     if (currentPhase === 'work') {
       showNotification('工作時間結束！', '休息一下吧 ☕');
@@ -249,13 +327,73 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
           {currentPhase === 'work' && (
             <div className="space-y-2">
               <Label htmlFor="task-name">任務名稱</Label>
-              <Input
-                id="task-name"
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                placeholder="輸入你要專注的任務..."
-                disabled={isRunning}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Input
+                    id="task-name"
+                    value={taskName}
+                    onChange={(e) => {
+                      setTaskName(e.target.value);
+                      setShowTaskSuggestions(true);
+                    }}
+                    onFocus={() => setShowTaskSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowTaskSuggestions(false), 200)}
+                    placeholder="輸入你要專注的任務..."
+                    disabled={isRunning}
+                    autoComplete="off"
+                  />
+                  {showTaskSuggestions && taskName && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                      {recentTasks
+                        .filter(task => task.toLowerCase().includes(taskName.toLowerCase()))
+                        .slice(0, 5)
+                        .map((task, index) => (
+                          <div
+                            key={index}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              setTaskName(task);
+                              setShowTaskSuggestions(false);
+                            }}
+                          >
+                            {task}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={isRunning}>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56">
+                    <div className="px-2 py-1.5 text-sm font-semibold">預設任務類型</div>
+                    {defaultTaskTypes.map((type) => (
+                      <DropdownMenuItem
+                        key={type}
+                        onClick={() => setTaskName(type)}
+                      >
+                        {type}
+                      </DropdownMenuItem>
+                    ))}
+                    {recentTasks.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-sm font-semibold border-t mt-1 pt-2">最近使用</div>
+                        {recentTasks.slice(0, 5).map((task, index) => (
+                          <DropdownMenuItem
+                            key={index}
+                            onClick={() => setTaskName(task)}
+                          >
+                            {task}
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           )}
 
@@ -309,22 +447,45 @@ export function Timer({ settings, onSessionComplete, sessions }: TimerProps) {
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-mono">{sessionCount}</div>
             <div className="text-sm text-muted-foreground">本輪番茄鐘</div>
+            <div className="mt-2">
+              <Progress value={(sessionCount % settings.pomodorosUntilLongBreak) / settings.pomodorosUntilLongBreak * 100} className="h-2" />
+            </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-mono">{completedPomodoros}</div>
             <div className="text-sm text-muted-foreground">今日完成</div>
+            <div className="mt-2 flex justify-center gap-1">
+              {Array.from({ length: Math.min(completedPomodoros, 8) }, (_, i) => (
+                <div key={i} className="w-2 h-2 bg-primary rounded-full" />
+              ))}
+              {completedPomodoros > 8 && (
+                <span className="text-xs text-muted-foreground ml-1">+{completedPomodoros - 8}</span>
+              )}
+            </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-mono">
               {settings.pomodorosUntilLongBreak - (sessionCount % settings.pomodorosUntilLongBreak)}
             </div>
             <div className="text-sm text-muted-foreground">距離長休息</div>
+            <div className="mt-2 flex justify-center gap-1">
+              {Array.from({ length: settings.pomodorosUntilLongBreak }, (_, i) => (
+                <div
+                  key={i}
+                  className={`w-3 h-3 rounded-full ${
+                    i < (sessionCount % settings.pomodorosUntilLongBreak)
+                      ? 'bg-primary'
+                      : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
