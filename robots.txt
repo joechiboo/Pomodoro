@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://joechiboo.github.io/Pomodoro/sitemap.xml
+
+# Disallow common non-content paths
+Disallow: /node_modules/
+Disallow: /.git/
+Disallow: /dist/
+Disallow: /build/
+
+# Allow specific important files
+Allow: /favicon.ico
+Allow: /manifest.json
+Allow: /*.png
+Allow: /*.svg
+Allow: /*.css
+Allow: /*.js
