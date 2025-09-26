@@ -7,7 +7,6 @@ import { Separator } from './ui/separator';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { Slider } from './ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Settings as SettingsIcon, Clock, Coffee, RotateCcw, Save, Volume2, Bell } from 'lucide-react';
 import { TimerSettings } from '../App';
 
@@ -92,8 +91,8 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     setHasChanges(true);
   };
 
-  const testSound = async () => {
-    if (!localSettings.soundEnabled) return;
+  const testSound = async (soundType?: string) => {
+    if (!localSettings.soundEnabled && !soundType) return;
 
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -109,11 +108,11 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      const soundType = localSettings.soundType || 'bell';
+      const typeToTest = soundType || localSettings.soundType || 'bell';
       const volume = localSettings.soundVolume || 0.5;
 
       // Different sound patterns based on type
-      switch (soundType) {
+      switch (typeToTest) {
         case 'bell':
           oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
@@ -388,20 +387,35 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
 
                 <div className="space-y-2">
                   <Label>音效類型</Label>
-                  <Select
-                    value={localSettings.soundType || 'bell'}
-                    onValueChange={(value) => handleSoundSettingChange('soundType', value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="選擇音效類型" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bell">鐘聲</SelectItem>
-                      <SelectItem value="chime">風鈴</SelectItem>
-                      <SelectItem value="digital">數位音</SelectItem>
-                      <SelectItem value="soft">柔和音</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'bell', label: '🔔 鐘聲', desc: '經典鈴聲' },
+                      { value: 'chime', label: '🎵 風鈴', desc: '輕柔悅耳' },
+                      { value: 'digital', label: '🔊 數位音', desc: '電子提示音' },
+                      { value: 'soft', label: '🎶 柔和音', desc: '溫和提醒' },
+                    ].map((sound) => (
+                      <Button
+                        key={sound.value}
+                        type="button"
+                        variant={localSettings.soundType === sound.value ? 'default' : 'outline'}
+                        onClick={() => {
+                          handleSoundSettingChange('soundType', sound.value);
+                          testSound(sound.value);
+                        }}
+                        className="h-auto p-3 text-left justify-start relative group"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{sound.label}</div>
+                          <div className="text-xs text-muted-foreground">{sound.desc}</div>
+                        </div>
+                        {localSettings.soundType === sound.value && (
+                          <div className="absolute top-2 right-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                          </div>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 <Button
