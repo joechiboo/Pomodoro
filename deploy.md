@@ -1,10 +1,35 @@
-# 🚀 GitHub Pages 部署指南 (優化版)
+# 🚀 GitHub Pages 部署指南 (2024 混合部署版)
 
-本指南整合了高效的部署方法和常見問題的解決方案，讓 GitHub Pages 部署變得快速簡單。
+本專案使用現代化的混合部署策略，支援自動和手動兩種部署方式。
 
-## 🎯 快速部署 (推薦)
+## 🎯 目前部署策略
 
-### 方法一：一鍵腳本部署 ⚡
+### 主要部署方式：GitHub Actions 自動部署 ⚡ (推薦)
+- **觸發**：每次 push 到 main 分支
+- **方式**：GitHub Actions 自動建構並部署
+- **優點**：完全自動化，推送即部署
+- **分支**：不使用 gh-pages 分支，直接部署到 GitHub Pages
+
+### 備用部署方式：gh-pages 手動部署 🔧
+- **使用時機**：需要立即部署或 GitHub Actions 有問題時
+- **方式**：手動執行部署指令
+- **分支**：推送到 gh-pages 分支
+
+---
+
+## 📋 快速開始
+
+### 🎯 一般情況（推薦）
+```bash
+# 只需要推送到 main 分支，GitHub Actions 會自動部署
+git add .
+git commit -m "你的更改描述"
+git push origin main
+```
+
+### ⚡ 緊急部署（手動方式）
+
+#### 方法一：一鍵腳本部署
 ```bash
 # 使用內建的部署腳本 (最快)
 bash deploy.sh
@@ -69,9 +94,9 @@ npm run deploy-fast
 | GitHub Actions | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | 自動但慢，適合 CI/CD |
 | 手動 gh-pages | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | 靈活但需手動建置 |
 
-## 🚀 GitHub Actions 自動部署
+## 🚀 GitHub Actions 自動部署 (當前使用中)
 
-如果你偏好自動部署，創建 `.github/workflows/deploy.yml`：
+✅ **已設定並運行中** - `.github/workflows/deploy.yml` 已配置
 
 ```yaml
 name: Deploy to GitHub Pages
@@ -80,9 +105,13 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -93,17 +122,25 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Install and Build
-      run: |
-        npm ci
-        npm run build
+    - name: Install dependencies
+      run: npm ci
 
-    - name: Deploy
+    - name: Build
+      run: npm run build
+
+    - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./dist
+        force_orphan: true
 ```
+
+### 🔧 重要配置說明
+- **權限**：使用 `contents: write` 權限
+- **強制更新**：使用 `force_orphan: true` 確保乾淨部署
+- **條件部署**：僅在 main 分支觸發
 
 ## ⚠️ 常見問題與解決方案
 
