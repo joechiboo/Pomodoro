@@ -57,20 +57,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // Determine the correct redirect URL based on environment
+    const redirectTo = window.location.hostname === 'localhost'
+      ? 'http://localhost:5173'
+      : 'https://joechiboo.github.io/Pomodoro';
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo,
       },
     });
     return { error };
   };
 
   const signInWithFacebook = async () => {
+    // Determine the correct redirect URL based on environment
+    const redirectTo = window.location.hostname === 'localhost'
+      ? 'http://localhost:5173'
+      : 'https://joechiboo.github.io/Pomodoro';
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo,
       },
     });
     return { error };

@@ -127,7 +127,22 @@ VITE_SUPABASE_ANON_KEY=你的_supabase_anon_key
 http://localhost:5173
 ```
 
-## 步驟 6：設定電子郵件認證（選用）
+## 步驟 6：設定 Site URL 和 Redirect URLs（重要）
+
+這步驟很重要，否則 OAuth 登入後會跳轉到錯誤的網址：
+
+1. 前往 **Authentication** > **URL Configuration**
+2. 設定 **Site URL**：
+   - 本地開發：`http://localhost:5173`
+   - 生產環境：`https://joechiboo.github.io/Pomodoro`
+3. 設定 **Redirect URLs**（加入以下兩個）：
+   - `http://localhost:5173/**`（本地開發）
+   - `https://joechiboo.github.io/Pomodoro/**`（生產環境）
+4. 儲存
+
+**注意：** Site URL 要根據你目前的環境切換（開發時用 localhost，部署後用 GitHub Pages 網址）
+
+## 步驟 7：設定電子郵件認證（選用）
 
 預設情況下，Supabase 要求使用者驗證電子郵件。如果你想要在開發時關閉：
 
@@ -137,7 +152,7 @@ http://localhost:5173
 
 **注意：** 生產環境建議啟用電子郵件驗證。
 
-## 步驟 7：設定 GitHub Secrets（用於部署）
+## 步驟 8：設定 GitHub Secrets（用於部署）
 
 如果你要部署到 GitHub Pages，需要設定環境變數：
 
@@ -152,7 +167,7 @@ http://localhost:5173
 
 **重要：** 這樣部署時才能正確載入 Supabase 設定。
 
-## 步驟 8：測試連線
+## 步驟 9：測試連線
 
 1. 啟動開發伺服器：
    ```bash
