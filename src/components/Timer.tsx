@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
-import { Play, Pause, RotateCcw, Coffee, Target, ChevronDown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Target, ChevronDown, SkipForward } from 'lucide-react';
 import { TimerSettings, PomodoroSession } from '../App';
 import {
   DropdownMenu,
@@ -333,6 +333,28 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
     cancelAutoStart();
   };
 
+  const endBreak = () => {
+    // Stop the timer
+    setIsRunning(false);
+    cancelAutoStart();
+
+    // Complete the current break session
+    const now = new Date();
+    const session: Omit<PomodoroSession, 'id'> = {
+      taskName: getPhaseLabel(),
+      duration: (getCurrentPhaseDuration() - timeLeft) / 60, // Actual duration spent
+      type: currentPhase === 'longBreak' ? 'longBreak' : 'break',
+      completedAt: now,
+      date: now.toISOString().split('T')[0],
+    };
+    onSessionComplete(session);
+
+    // Switch to work phase
+    showNotification('休息結束！', '開始新的工作時段 🍅');
+    setCurrentPhase('work');
+    setTimeLeft(settings.workDuration * 60);
+  };
+
   const updateLastSelectedTask = (task: string) => {
     const updatedSettings = {
       ...settings,
@@ -502,6 +524,13 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
                   暫停
                 </Button>
               ) : null}
+
+              {currentPhase !== 'work' && (
+                <Button onClick={endBreak} variant="default" size="lg">
+                  <SkipForward className="w-5 h-5 mr-2" />
+                  結束休息
+                </Button>
+              )}
 
               <Button onClick={resetTimer} variant="outline" size="lg">
                 <RotateCcw className="w-5 h-5 mr-2" />

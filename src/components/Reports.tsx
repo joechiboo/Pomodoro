@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Calendar, Search, TrendingUp, Clock, Target, Trash2, X } from 'lucide-react';
+import { Calendar, Search, TrendingUp, Clock, Target, Trash2, X, Download } from 'lucide-react';
 import { PomodoroSession } from '../App';
 
 interface ReportsProps {
@@ -69,7 +69,10 @@ export function Reports({ sessions, onDeleteSession, onClearTodaySessions }: Rep
     const dailyBreakdown = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const dayName = ['日', '一', '二', '三', '四', '五', '六'][i];
       
       const daySessions = weekSessions.filter(session => session.date === dateStr && session.type === 'work');
@@ -140,13 +143,75 @@ export function Reports({ sessions, onDeleteSession, onClearTodaySessions }: Rep
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
+  // Export functions
+  const exportToCSV = () => {
+    const csvData = filteredSessions.map(session => ({
+      日期: session.date,
+      完成時間: new Date(session.completedAt).toLocaleString('zh-TW'),
+      任務名稱: session.taskName,
+      類型: session.type === 'work' ? '工作' : '休息',
+      時長分鐘: session.duration,
+    }));
+
+    const headers = Object.keys(csvData[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `番茄鐘紀錄_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToJSON = () => {
+    const jsonData = JSON.stringify(filteredSessions, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `番茄鐘紀錄_${new Date().toISOString().split('T')[0]}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            生產力報表
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              生產力報表
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToCSV}
+                disabled={filteredSessions.length === 0}
+              >
+                <Download className="w-4 h-4 mr-1" />
+                匯出 CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToJSON}
+                disabled={filteredSessions.length === 0}
+              >
+                <Download className="w-4 h-4 mr-1" />
+                匯出 JSON
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
