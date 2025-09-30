@@ -50,7 +50,7 @@ const defaultTaskTypes = [
 
 export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions }: TimerProps) {
   const [taskName, setTaskName] = useState(settings.lastSelectedTask || settings.defaultTaskName || '');
-  const [timeLeft, setTimeLeft] = useState(settings.workDuration * 60);
+  const [timeLeft, setTimeLeft] = useState(Math.round(settings.workDuration * 60));
   const [isRunning, setIsRunning] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<TimerPhase>('work');
   const [sessionCount, setSessionCount] = useState(0);
@@ -93,7 +93,7 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
   // Reset timer when settings change
   useEffect(() => {
     if (!isRunning) {
-      setTimeLeft(settings.workDuration * 60);
+      setTimeLeft(Math.round(settings.workDuration * 60));
       setCurrentPhase('work');
     }
   }, [settings, isRunning]);
@@ -116,11 +116,11 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
   const getCurrentPhaseDuration = () => {
     switch (currentPhase) {
       case 'work':
-        return settings.workDuration * 60;
+        return Math.round(settings.workDuration * 60);
       case 'shortBreak':
-        return settings.shortBreakDuration * 60;
+        return Math.round(settings.shortBreakDuration * 60);
       case 'longBreak':
-        return settings.longBreakDuration * 60;
+        return Math.round(settings.longBreakDuration * 60);
     }
   };
 
@@ -268,23 +268,27 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
 
     if (currentPhase === 'work') {
       showNotification('工作時間結束！', '休息一下吧 ☕');
-      setSessionCount(prev => prev + 1);
+      const newCount = sessionCount + 1;
+      setSessionCount(newCount);
 
       // Determine next break type
-      const nextPhase = (sessionCount + 1) % settings.pomodorosUntilLongBreak === 0
+      const nextPhase = newCount % settings.pomodorosUntilLongBreak === 0
         ? 'longBreak'
         : 'shortBreak';
 
       setCurrentPhase(nextPhase);
-      setTimeLeft(nextPhase === 'longBreak'
+      setTimeLeft(Math.round(nextPhase === 'longBreak'
         ? settings.longBreakDuration * 60
-        : settings.shortBreakDuration * 60
+        : settings.shortBreakDuration * 60)
       );
+      // Automatically start the break
+      setIsRunning(true);
 
     } else {
       showNotification('休息時間結束！', '準備開始下一個番茄鐘 🍅');
       setCurrentPhase('work');
-      setTimeLeft(settings.workDuration * 60);
+      setTimeLeft(Math.round(settings.workDuration * 60));
+      // Don't automatically start work session - let user start manually
     }
   };
 
@@ -293,8 +297,7 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
       intervalRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            setIsRunning(false);
-            completeSession();
+            // Timer is about to complete
             return 0;
           }
           return prev - 1;
@@ -313,6 +316,17 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
     };
   }, [isRunning, timeLeft]);
 
+  // Separate effect to handle timer completion
+  useEffect(() => {
+    if (timeLeft === 0 && isRunning) {
+      setIsRunning(false);
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => {
+        completeSession();
+      }, 0);
+    }
+  }, [timeLeft, isRunning, currentPhase, sessionCount, taskName, settings]);
+
   const startTimer = () => {
     if (currentPhase === 'work' && !taskName.trim()) {
       setTaskName(settings.defaultTaskName || '專注工作');
@@ -327,7 +341,7 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
   const resetTimer = () => {
     setIsRunning(false);
     setCurrentPhase('work');
-    setTimeLeft(settings.workDuration * 60);
+    setTimeLeft(Math.round(settings.workDuration * 60));
     setSessionCount(0);
     setTaskName(settings.lastSelectedTask || settings.defaultTaskName || '');
     cancelAutoStart();
@@ -352,7 +366,7 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
     // Switch to work phase
     showNotification('休息結束！', '開始新的工作時段 🍅');
     setCurrentPhase('work');
-    setTimeLeft(settings.workDuration * 60);
+    setTimeLeft(Math.round(settings.workDuration * 60));
   };
 
   const updateLastSelectedTask = (task: string) => {
@@ -374,11 +388,6 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
           }`}>
             {getPhaseIcon()}
             {getPhaseLabel()}
-            {timeLeft <= 10 && isRunning && (
-              <span className="text-sm bg-red-100 text-red-600 px-2 py-1 rounded-full ml-2 animate-pulse">
-                最後 {timeLeft} 秒！
-              </span>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
