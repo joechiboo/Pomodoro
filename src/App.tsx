@@ -78,6 +78,9 @@ function AppContent() {
 
         if (supabaseSettings) {
           setSettings(supabaseSettings);
+        } else {
+          // First time login - save default settings to Supabase
+          await saveSettingsToSupabase(defaultSettings);
         }
       } else {
         // Load from localStorage for guest users or offline mode
