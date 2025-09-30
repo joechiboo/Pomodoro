@@ -82,20 +82,43 @@ VITE_SUPABASE_ANON_KEY=你的_supabase_anon_key
 ### 設定 Facebook OAuth
 
 1. 前往 [Facebook Developers](https://developers.facebook.com/)
-2. 建立新應用程式或選擇現有應用程式
-3. 在左側選單選擇 **Settings** > **Basic**
-4. 複製 **App ID** 和 **App Secret**
-5. 在 **App Domains** 加入你的網域
-6. 前往 **Products** > **Facebook Login** > **Settings**
-7. 在 **Valid OAuth Redirect URIs** 加入：
-   ```
-   https://thgtezpxlnznrdyoxflf.supabase.co/auth/v1/callback
-   ```
-8. 在 Supabase Dashboard 中：
-   - 前往 **Authentication** > **Providers**
-   - 找到 **Facebook** 並啟用
-   - 貼上 **App ID**（作為 Client ID）和 **App Secret**（作為 Client Secret）
-   - 儲存
+2. 點擊 **My Apps** > **Create App**
+3. 選擇 **Consumer**（消費者）類型
+4. 填寫應用程式名稱和聯絡電子郵件
+5. 建立完成後，在左側選單找到 **Add Products**
+6. 找到 **Facebook Login**，點擊 **Set Up**
+7. 選擇 **Web** 平台
+8. 設定 Facebook Login：
+   - 前往 **Facebook Login** > **Settings**
+   - 在 **Valid OAuth Redirect URIs** 加入：
+     ```
+     https://thgtezpxlnznrdyoxflf.supabase.co/auth/v1/callback
+     ```
+   - 在 **Client OAuth Settings** 區塊：
+     - 啟用 **Client OAuth Login**
+     - 啟用 **Web OAuth Login**
+   - 儲存變更
+9. **重要：切換到開發模式（Development Mode）**
+   - 在頁面頂部，你會看到應用程式狀態
+   - 確保應用程式處於 **Development** 模式（測試用）
+   - 在開發模式下，不需要審核就能使用 email 權限
+10. 新增測試使用者（重要）：
+    - 前往左側選單 **Roles** > **Test Users**
+    - 點擊 **Add** 建立測試使用者
+    - 或在 **Roles** > **Roles** 中將你的 Facebook 帳號加為開發者/測試者
+11. 取得憑證：
+    - 前往 **Settings** > **Basic**
+    - 複製 **App ID** 和 **App Secret**（點擊 Show 顯示）
+12. 在 Supabase Dashboard 中：
+    - 前往 **Authentication** > **Providers**
+    - 找到 **Facebook** 並啟用
+    - 貼上 **App ID**（作為 Client ID）和 **App Secret**（作為 Client Secret）
+    - 儲存
+
+**重要提醒：**
+- 開發模式下，只有測試使用者、開發者、管理員可以登入
+- 要讓一般使用者登入，需要將 App 切換到 **Live Mode**，這需要通過 Facebook 審核
+- 審核前，建議先用測試帳號測試功能
 
 ### 本地開發設定
 
