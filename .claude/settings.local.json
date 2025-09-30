@@ -12,7 +12,10 @@
       "Bash(start http://localhost:3007/Pomodoro/)",
       "Bash(start http://localhost:3006/Pomodoro/)",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh repo view:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh run list:*)"
     ],
     "deny": [],
     "ask": []

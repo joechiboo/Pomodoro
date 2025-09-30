@@ -103,9 +103,9 @@ export function useSupabaseSync() {
         .from('user_settings')
         .upsert({
           user_id: user.id,
-          work_duration: settings.workDuration,
-          short_break_duration: settings.shortBreakDuration,
-          long_break_duration: settings.longBreakDuration,
+          work_duration: Math.round(settings.workDuration * 60), // Convert to seconds
+          short_break_duration: Math.round(settings.shortBreakDuration * 60), // Convert to seconds
+          long_break_duration: Math.round(settings.longBreakDuration * 60), // Convert to seconds
           pomodoros_until_long_break: settings.pomodorosUntilLongBreak,
           sound_enabled: settings.soundEnabled,
           sound_type: settings.soundType,
@@ -142,9 +142,9 @@ export function useSupabaseSync() {
       }
 
       return {
-        workDuration: data.work_duration,
-        shortBreakDuration: data.short_break_duration,
-        longBreakDuration: data.long_break_duration,
+        workDuration: data.work_duration / 60, // Convert from seconds to minutes
+        shortBreakDuration: data.short_break_duration / 60, // Convert from seconds to minutes
+        longBreakDuration: data.long_break_duration / 60, // Convert from seconds to minutes
         pomodorosUntilLongBreak: data.pomodoros_until_long_break,
         soundEnabled: data.sound_enabled,
         soundType: data.sound_type,

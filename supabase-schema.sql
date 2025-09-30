@@ -44,11 +44,12 @@ CREATE POLICY "Users can delete their own sessions"
   USING (auth.uid() = user_id);
 
 -- 建立使用者設定資料表
+-- 注意: 時間欄位以秒為單位儲存，前端會轉換為分鐘
 CREATE TABLE IF NOT EXISTS public.user_settings (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  work_duration INTEGER DEFAULT 25,
-  short_break_duration INTEGER DEFAULT 5,
-  long_break_duration INTEGER DEFAULT 15,
+  work_duration INTEGER DEFAULT 1500, -- 預設 25 分鐘 (25 * 60 秒)
+  short_break_duration INTEGER DEFAULT 300, -- 預設 5 分鐘 (5 * 60 秒)
+  long_break_duration INTEGER DEFAULT 900, -- 預設 15 分鐘 (15 * 60 秒)
   pomodoros_until_long_break INTEGER DEFAULT 4,
   sound_enabled BOOLEAN DEFAULT true,
   sound_type TEXT DEFAULT 'bell',
