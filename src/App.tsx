@@ -74,13 +74,41 @@ function AppContent() {
 
         if (supabaseSessions.length > 0) {
           setSessions(supabaseSessions);
+        } else {
+          // First time login - check if there are sessions in localStorage to migrate
+          const localSessions = localStorage.getItem('pomodoroSessions');
+          if (localSessions) {
+            const parsedSessions = JSON.parse(localSessions).map((session: any) => ({
+              ...session,
+              completedAt: new Date(session.completedAt),
+            }));
+            setSessions(parsedSessions);
+
+            // Sync local sessions to Supabase
+            for (const session of parsedSessions) {
+              await syncSessionToSupabase(session);
+            }
+          }
         }
 
         if (supabaseSettings) {
           setSettings(supabaseSettings);
         } else {
-          // First time login - save default settings to Supabase
-          await saveSettingsToSupabase(defaultSettings);
+          // First time login - check if there are settings in localStorage to migrate
+          const localSettings = localStorage.getItem('pomodoroSettings');
+          let settingsToSave = defaultSettings;
+
+          if (localSettings) {
+            const parsedLocalSettings = JSON.parse(localSettings);
+            settingsToSave = {
+              ...defaultSettings,
+              ...parsedLocalSettings,
+            };
+            setSettings(settingsToSave);
+          }
+
+          // Save settings to Supabase
+          await saveSettingsToSupabase(settingsToSave);
         }
       } else {
         // Load from localStorage for guest users or offline mode
