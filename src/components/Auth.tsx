@@ -12,7 +12,7 @@ interface AuthProps {
 }
 
 export function Auth({ onSkip }: AuthProps) {
-  const { signIn, signUp, signInWithGoogle, signInWithFacebook } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -76,16 +76,6 @@ export function Auth({ onSkip }: AuthProps) {
     setLoading(true);
     setError(null);
     const { error } = await signInWithGoogle();
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    }
-  };
-
-  const handleFacebookLogin = async () => {
-    setLoading(true);
-    setError(null);
-    const { error } = await signInWithFacebook();
     if (error) {
       setError(error.message);
       setLoading(false);
