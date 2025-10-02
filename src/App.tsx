@@ -290,6 +290,8 @@ function AppContent() {
               sessions={sessions}
               onDeleteSession={deleteSession}
               onClearTodaySessions={clearTodaySessions}
+              settings={settings}
+              onUpdateSettings={updateSettings}
             />
           </TabsContent>
 

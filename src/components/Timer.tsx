@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -62,6 +62,13 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
   const intervalRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
   const notificationPermission = useRef(false);
+
+  // Get unique recent tasks, excluding those already in custom task list
+  const uniqueRecentTasks = useMemo(() => {
+    const customSet = new Set(settings.customTaskList || []);
+    const defaultSet = new Set(defaultTaskTypes);
+    return recentTasks.filter(task => !customSet.has(task) && !defaultSet.has(task));
+  }, [recentTasks, settings.customTaskList]);
 
   // Request notification permission on component mount and load recent tasks
   useEffect(() => {
@@ -435,56 +442,101 @@ export function Timer({ settings, onSessionComplete, onUpdateSettings, sessions 
                   )}
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" disabled={isRunning || autoStartCountdown > 0}>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
+                  <DropdownMenuTrigger
+                    disabled={isRunning || autoStartCountdown > 0}
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                  >
+                    <ChevronDown className="h-4 w-4" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56">
-                    <div className="px-2 py-1.5 text-sm font-semibold">預設任務類型</div>
-                    {defaultTaskTypes.map((type) => (
-                      <DropdownMenuItem
-                        key={type}
-                        onClick={() => {
-                          setTaskName(type);
-                          updateLastSelectedTask(type);
-                        }}
-                      >
-                        {type}
-                      </DropdownMenuItem>
-                    ))}
+                  <DropdownMenuContent
+                    className="w-96 max-h-[70vh] overflow-y-auto p-4 shadow-2xl !border-[3px] !border-solid !border-gray-500 dark:!border-gray-500 bg-white dark:bg-gray-950 z-[100] rounded-2xl"
+                    sideOffset={12}
+                    align="start"
+                    style={{
+                      backgroundColor: 'white',
+                      border: '3px solid rgb(107, 114, 128)'
+                    }}
+                  >
+                    {/* 自定義任務列表 - 最優先顯示 */}
                     {settings.customTaskList && settings.customTaskList.length > 0 && (
-                      <>
-                        <div className="px-2 py-1.5 text-sm font-semibold border-t mt-1 pt-2">自定義任務</div>
-                        {settings.customTaskList.map((task, index) => (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2.5 px-3 py-2 mb-3 bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                          <span className="text-2xl filter drop-shadow-sm">⭐</span>
+                          <span className="text-base font-extrabold !text-white tracking-wide drop-shadow-sm">自定義任務列表</span>
+                        </div>
+                        <div className="space-y-2">
+                          {settings.customTaskList.map((task, index) => (
+                            <DropdownMenuItem
+                              key={`custom-${index}`}
+                              onClick={() => {
+                                setTaskName(task);
+                                updateLastSelectedTask(task);
+                              }}
+                              className="group relative cursor-pointer px-5 py-4 rounded-2xl font-bold text-base text-blue-700 dark:text-blue-300 bg-gradient-to-br from-blue-50 via-blue-100/80 to-indigo-50 dark:from-blue-950/50 dark:via-blue-900/40 dark:to-indigo-950/50 hover:from-blue-100 hover:via-blue-200 hover:to-indigo-100 dark:hover:from-blue-900/70 dark:hover:via-blue-800/60 dark:hover:to-indigo-900/70 data-[highlighted]:from-blue-100 data-[highlighted]:via-blue-200 data-[highlighted]:to-indigo-100 dark:data-[highlighted]:from-blue-900/70 dark:data-[highlighted]:via-blue-800/60 dark:data-[highlighted]:to-indigo-900/70 transition-all duration-300 border-2 border-blue-200 dark:border-blue-800/60 hover:border-blue-400 dark:hover:border-blue-600 data-[highlighted]:border-blue-400 dark:data-[highlighted]:border-blue-600 hover:shadow-2xl hover:shadow-blue-200/50 dark:hover:shadow-blue-900/50 data-[highlighted]:shadow-2xl data-[highlighted]:shadow-blue-200/50 dark:data-[highlighted]:shadow-blue-900/50 hover:-translate-y-1 data-[highlighted]:-translate-y-1 active:translate-y-0 active:shadow-lg overflow-hidden"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                              <span className="flex items-center gap-4 relative z-10">
+                                <span className="flex-shrink-0 w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50 group-hover:scale-150 group-hover:shadow-xl transition-all duration-300"></span>
+                                <span className="flex-1 group-hover:translate-x-1 transition-transform duration-300">{task}</span>
+                                <span className="text-xs text-blue-500/60 dark:text-blue-400/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <div className="my-5 h-px bg-gradient-to-r from-transparent via-blue-300 dark:via-blue-800 to-transparent" />
+                      </div>
+                    )}
+
+                    {/* 最近使用 - 第二優先 */}
+                    {uniqueRecentTasks.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2.5 px-3 py-2 mb-3 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 rounded-xl shadow-md">
+                          <span className="text-xl">🕐</span>
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">最近使用</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {uniqueRecentTasks.slice(0, 5).map((task, index) => (
+                            <DropdownMenuItem
+                              key={`recent-${index}`}
+                              onClick={() => {
+                                setTaskName(task);
+                                updateLastSelectedTask(task);
+                              }}
+                              className="group cursor-pointer px-5 py-3.5 rounded-xl font-semibold text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900/50 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-800 dark:hover:to-gray-700 data-[highlighted]:bg-gradient-to-r data-[highlighted]:from-gray-100 data-[highlighted]:to-gray-200 dark:data-[highlighted]:from-gray-800 dark:data-[highlighted]:to-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 data-[highlighted]:border-gray-400 dark:data-[highlighted]:border-gray-600 hover:shadow-lg data-[highlighted]:shadow-lg hover:-translate-y-0.5 data-[highlighted]:-translate-y-0.5 active:translate-y-0"
+                            >
+                              <span className="flex items-center gap-3.5">
+                                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 group-hover:scale-150 group-hover:bg-gray-600 dark:group-hover:bg-gray-300 transition-all duration-200 shadow-sm"></span>
+                                <span className="flex-1 group-hover:translate-x-0.5 transition-transform duration-200">{task}</span>
+                                <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <div className="my-5 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent" />
+                      </div>
+                    )}
+
+                    {/* 推薦任務類型 - 最後顯示 */}
+                    <div>
+                      <div className="flex items-center gap-2.5 px-3 py-2 mb-3 bg-gray-100 dark:bg-gray-900/50 rounded-xl">
+                        <span className="text-xl">📋</span>
+                        <span className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦任務類型</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {defaultTaskTypes.map((type) => (
                           <DropdownMenuItem
-                            key={index}
+                            key={`default-${type}`}
                             onClick={() => {
-                              setTaskName(task);
-                              updateLastSelectedTask(task);
+                              setTaskName(type);
+                              updateLastSelectedTask(type);
                             }}
+                            className="group cursor-pointer px-4 py-3 rounded-xl text-sm font-medium text-center text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 hover:text-gray-900 dark:hover:text-gray-100 data-[highlighted]:text-gray-900 dark:data-[highlighted]:text-gray-100 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-800/80 dark:hover:to-gray-700/80 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-gray-100 data-[highlighted]:to-gray-200 dark:data-[highlighted]:from-gray-800/80 dark:data-[highlighted]:to-gray-700/80 transition-all duration-200 border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 data-[highlighted]:border-gray-400 dark:data-[highlighted]:border-gray-600 hover:shadow-md data-[highlighted]:shadow-md hover:scale-105 data-[highlighted]:scale-105 active:scale-100"
                           >
-                            {task}
+                            <span className="block truncate">{type}</span>
                           </DropdownMenuItem>
                         ))}
-                      </>
-                    )}
-                    {recentTasks.length > 0 && (
-                      <>
-                        <div className="px-2 py-1.5 text-sm font-semibold border-t mt-1 pt-2">最近使用</div>
-                        {recentTasks.slice(0, 5).map((task, index) => (
-                          <DropdownMenuItem
-                            key={index}
-                            onClick={() => {
-                              setTaskName(task);
-                              updateLastSelectedTask(task);
-                            }}
-                          >
-                            {task}
-                          </DropdownMenuItem>
-                        ))}
-                      </>
-                    )}
+                      </div>
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

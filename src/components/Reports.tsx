@@ -5,18 +5,40 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Calendar, Search, TrendingUp, Clock, Target, Trash2, X, Download } from 'lucide-react';
-import { PomodoroSession } from '../App';
+import { Calendar, Search, TrendingUp, Clock, Target, Trash2, X, Download, Plus } from 'lucide-react';
+import { PomodoroSession, TimerSettings } from '../App';
+import { toast } from 'sonner';
 
 interface ReportsProps {
   sessions: PomodoroSession[];
   onDeleteSession?: (sessionId: string) => void;
   onClearTodaySessions?: () => void;
+  settings?: TimerSettings;
+  onUpdateSettings?: (settings: TimerSettings) => void;
 }
 
-export function Reports({ sessions, onDeleteSession, onClearTodaySessions }: ReportsProps) {
+export function Reports({ sessions, onDeleteSession, onClearTodaySessions, settings, onUpdateSettings }: ReportsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('daily');
+
+  const addToCustomTaskList = (taskName: string) => {
+    if (!settings || !onUpdateSettings) return;
+
+    // Check if task already exists in custom task list
+    if (settings.customTaskList.includes(taskName)) {
+      toast.info('此任務已在常用清單中');
+      return;
+    }
+
+    // Add task to custom task list
+    const updatedSettings = {
+      ...settings,
+      customTaskList: [...settings.customTaskList, taskName]
+    };
+
+    onUpdateSettings(updatedSettings);
+    toast.success(`已將「${taskName}」加入常用工作清單`);
+  };
 
   const filteredSessions = useMemo(() => {
     if (!searchTerm) return sessions;
@@ -321,6 +343,17 @@ export function Reports({ sessions, onDeleteSession, onClearTodaySessions }: Rep
                               minute: '2-digit',
                             })}
                           </div>
+                          {session.type === 'work' && settings && onUpdateSettings && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => addToCustomTaskList(session.taskName)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-green-600 hover:text-green-700"
+                              title="加入常用工作清單"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          )}
                           {onDeleteSession && (
                             <Button
                               variant="ghost"
