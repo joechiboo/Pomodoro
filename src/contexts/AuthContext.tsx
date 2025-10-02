@@ -57,8 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // For GitHub Pages deployment at /Pomodoro/, use the full path
+    const redirectUrl = `${window.location.origin}/Pomodoro/`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+      },
     });
     return { error };
   };
